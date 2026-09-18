@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS stock (
+    sku VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity >= 0)
+);
