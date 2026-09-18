@@ -2,9 +2,9 @@
 
 # Customer Assistant Agent
 
-### Bir soru. Bir tool çağrısı. Gerçek stok verisi.
+### One question. One tool call. Live stock data.
 
-LangGraph ile çalışan, Java mikroservisinden stok sorgulayan müşteri asistanı.
+A LangGraph-powered customer assistant that queries inventory through a Java microservice.
 
 ![Python](https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
@@ -13,36 +13,36 @@ LangGraph ile çalışan, Java mikroservisinden stok sorgulayan müşteri asista
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.8-6DB33F?style=flat-square&logo=springboot&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 
-[Mimari](#mimari) · [Hızlı başlangıç](#hızlı-başlangıç) · [API](#api) · [Yol haritası](#yol-haritası)
+[Architecture](#architecture) · [Quick start](#quick-start) · [API](#api) · [Roadmap](#current-scope-and-roadmap)
 
 </div>
 
 ---
 
-> **Kullanıcı:** “SKU-001 stokta var mı?”<br>
-> **Asistan:** Stok tool'unu çağırır, PostgreSQL'deki güncel miktarı alır ve yanıtını bu veriye dayanarak oluşturur.
+> **User:** “Is SKU-001 in stock?”<br>
+> **Assistant:** Calls the stock tool, retrieves the current quantity from PostgreSQL, and uses that data to answer.
 
-Bu proje, bir LLM'in tool kullanarak ayrı bir backend servisiyle nasıl çalıştığını gösteren küçük bir uygulamadır. Python tarafı konuşma ve tool akışını; Java tarafı stok verisine erişimi yönetir.
+This small application demonstrates how an LLM uses a tool to interact with a separate backend service. Python handles the conversation and tool workflow; Java manages access to inventory data.
 
-| 💬 Konuşma | 🔧 Tool kullanımı | 📦 Stok servisi | 🔎 İzlenebilirlik |
+| 💬 Conversation | 🔧 Tool calling | 📦 Stock service | 🔎 Observability |
 | :--- | :--- | :--- | :--- |
-| FastAPI üzerinden mesaj gönder | Agent gerektiğinde `get_stock` çağırır | Spring Boot + JDBC ile PostgreSQL'e eriş | İsteğe bağlı LangSmith tracing |
+| Send messages through FastAPI | The agent calls `get_stock` when needed | Access PostgreSQL with Spring Boot + JDBC | Optional LangSmith tracing |
 
-## Mimari
+## Architecture
 
 ```mermaid
 flowchart LR
-    U["Kullanıcı / API istemcisi"] --> F["FastAPI<br/>POST /chat · :8000"]
+    U["User / API client"] --> F["FastAPI<br/>POST /chat · :8000"]
     F --> A["LangGraph Agent<br/>GPT-5 mini"]
-    A -->|Tool çağrısı| T["get_stock(sku)<br/>HTTPX · async GET"]
+    A -->|Tool call| T["get_stock(sku)<br/>HTTPX · async GET"]
     T --> J["Java Stock Service<br/>Spring Boot · :8081"]
-    J -->|JDBC · SELECT| P[("PostgreSQL<br/>stock tablosu · :5433")]
+    J -->|JDBC · SELECT| P[("PostgreSQL<br/>stock table · :5433")]
     P --> J
     J --> T
-    T -->|Tool sonucu| A
-    A -->|Son yanıt| F
+    T -->|Tool result| A
+    A -->|Final answer| F
     F --> U
-    A -. "İsteğe bağlı tracing" .-> L["LangSmith"]
+    A -. "Optional tracing" .-> L["LangSmith"]
 
     classDef python fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
     classDef java fill:#ecfccb,stroke:#65a30d,color:#365314
@@ -52,23 +52,23 @@ flowchart LR
     class P,L data
 ```
 
-Agent içindeki döngü:
+The agent loop:
 
 ```mermaid
 flowchart LR
     S((START)) --> M[chat_model]
-    M -->|Tool çağrısı var| T[ToolNode]
-    T -->|Sonucu mesajlara ekle| M
-    M -->|Tool çağrısı yok| E((END))
+    M -->|Tool call requested| T[ToolNode]
+    T -->|Append result to messages| M
+    M -->|No tool call| E((END))
 ```
 
-`bind_tools`, kullanılabilir tool'ları modele tanıtır. `ToolNode` seçilen tool'u çalıştırır; model sonucu görerek son yanıtını üretir. Her `/chat` isteği yeni mesaj geçmişiyle başlar; istekler arasında konuşma hafızası henüz yoktur.
+`bind_tools` makes tools available to the model. `ToolNode` executes the selected tool, and the model uses its result to produce a final answer. Each `/chat` request starts with a fresh message history; conversation memory across requests is not implemented yet.
 
-## Hızlı başlangıç
+## Quick start
 
-**Gerekenler:** Python 3.13+, [uv](https://docs.astral.sh/uv/getting-started/installation/), Java 21, Maven, çalışan Docker/OrbStack ve bir OpenAI API anahtarı.
+**Prerequisites:** Python 3.13+, [uv](https://docs.astral.sh/uv/getting-started/installation/), Java 21, Maven, a running Docker/OrbStack instance, and an OpenAI API key.
 
-### 1 · Projeyi hazırla
+### 1 · Set up the project
 
 ```bash
 git clone git@github.com:gocenalper/customer-assistant-agent.git
@@ -77,11 +77,11 @@ uv sync --locked
 cp .env.example .env
 ```
 
-`.env` içindeki `OPENAI_API_KEY` değerini kendi anahtarınla değiştir. Bu dosya Git'e dahil edilmez.
+Replace `OPENAI_API_KEY` in `.env` with your own key. This file is excluded from Git.
 
-### 2 · PostgreSQL ve Java servisini başlat
+### 2 · Start PostgreSQL and the Java service
 
-Proje kökünden, ilk terminalde:
+From the project root, in your first terminal:
 
 ```bash
 cd stock-service
@@ -89,61 +89,61 @@ docker compose up -d
 mvn spring-boot:run
 ```
 
-Java uygulaması açılışta `stock` tablosunu oluşturur. PostgreSQL verileri Docker volume'ünde saklanır; tablo ilk kurulumda boştur.
+The Java application creates the `stock` table on startup. PostgreSQL data persists in a Docker volume; the table is empty on a fresh installation.
 
-### 3 · Örnek ürünleri ekle
+### 3 · Add sample products
 
-Java servisi açıldıktan sonra, proje kökünde ikinci bir terminalde:
+Once the Java service has started, open a second terminal at the project root:
 
 ```bash
 docker compose -f stock-service/compose.yaml exec -T postgres \
   psql -v ON_ERROR_STOP=1 -U stock -d stockdb <<'SQL'
 INSERT INTO stock (sku, name, quantity) VALUES
-    ('SKU-001', 'Mekanik Klavye', 25),
-    ('SKU-002', 'Kablosuz Mouse', 40),
-    ('SKU-003', '27 inç Monitör', 12),
+    ('SKU-001', 'Mechanical Keyboard', 25),
+    ('SKU-002', 'Wireless Mouse', 40),
+    ('SKU-003', '27-inch Monitor', 12),
     ('SKU-004', 'USB-C Hub', 18),
-    ('SKU-005', 'Bluetooth Kulaklık', 0)
+    ('SKU-005', 'Bluetooth Headphones', 0)
 ON CONFLICT (sku) DO NOTHING;
 SQL
 ```
 
-Aynı komutu tekrar çalıştırmak mevcut ürün miktarlarını değiştirmez. `SKU-005`, stok tükenmesi senaryosu için sıfır miktarla eklenir.
+Running this command again leaves existing products unchanged, including their names and quantities. `SKU-005` starts with zero stock to demonstrate an out-of-stock response.
 
-### 4 · Python API'yi başlat
+### 4 · Start the Python API
 
-Proje kökünde:
+From the project root:
 
 ```bash
 uv run uvicorn api.service:app --reload
 ```
 
-| Servis | Adres |
+| Service | Address |
 | :--- | :--- |
-| FastAPI Swagger | [localhost:8000/docs](http://localhost:8000/docs) |
-| Stok listesi | [localhost:8081/stocks](http://localhost:8081/stocks) |
-| Tek ürün | [localhost:8081/stocks/SKU-001](http://localhost:8081/stocks/SKU-001) |
-| PostgreSQL | `localhost:5433` · veritabanı: `stockdb` |
+| FastAPI Swagger UI | [localhost:8000/docs](http://localhost:8000/docs) |
+| Stock list | [localhost:8081/stocks](http://localhost:8081/stocks) |
+| Single product | [localhost:8081/stocks/SKU-001](http://localhost:8081/stocks/SKU-001) |
+| PostgreSQL | `localhost:5433` · database: `stockdb` |
 
 ## API
 
-### Asistana sor
+### Ask the assistant
 
 ```bash
 curl -X POST http://localhost:8000/chat \
   -H 'Content-Type: application/json' \
-  -d '{"message":"SKU-001 stokta var mı?"}'
+  -d '{"message":"Is SKU-001 in stock?"}'
 ```
 
-Örnek yanıt; ifade modelin ürettiği cevaba göre değişebilir:
+Example response; the exact wording may vary:
 
 ```json
 {
-  "response": "Mekanik Klavye stokta mevcut. 25 adet bulunuyor."
+  "response": "The Mechanical Keyboard is in stock. There are 25 units available."
 }
 ```
 
-### Stok servisine doğrudan eriş
+### Query the stock service directly
 
 ```bash
 curl http://localhost:8081/stocks/SKU-001
@@ -152,69 +152,69 @@ curl http://localhost:8081/stocks/SKU-001
 ```json
 {
   "sku": "SKU-001",
-  "name": "Mekanik Klavye",
+  "name": "Mechanical Keyboard",
   "quantity": 25
 }
 ```
 
-| Metot | Endpoint | Davranış |
+| Method | Endpoint | Behavior |
 | :--- | :--- | :--- |
-| `POST` | `/chat` | `message` alır, agent yanıtını `response` alanında döndürür |
-| `GET` | `/stocks` | Stok listesini döndürür; kayıt yoksa `[]` |
-| `GET` | `/stocks/{sku}` | Tek ürünü döndürür; bulunamazsa `404` |
+| `POST` | `/chat` | Accepts a `message` and returns the agent's answer in `response` |
+| `GET` | `/stocks` | Returns all stock records, or `[]` when empty |
+| `GET` | `/stocks/{sku}` | Returns one product, or `404` if not found |
 
-`get_stock` tool'u SKU ile sorgular. Ürün adına göre arama henüz uygulanmamıştır.
+The `get_stock` tool queries by SKU. Product-name search is not implemented yet.
 
-## Proje yapısı
+## Project structure
 
 ```text
 customer-assistant-agent/
 ├── api/
-│   ├── service.py          # FastAPI /chat endpoint'i
+│   ├── service.py          # FastAPI /chat endpoint
 │   └── model.py            # UserMessage, LLMResponse, StockInfo
 ├── graph/
-│   └── agent.py            # Model, state ve tool döngüsü
+│   └── agent.py            # Model, state, and tool loop
 ├── tools/
-│   └── toolset.py          # get_stock ve TOOLSET
+│   └── toolset.py          # get_stock and TOOLSET
 ├── stock-service/
-│   ├── src/main/java/     # Spring Boot uygulaması ve stok endpoint'leri
+│   ├── src/main/java/      # Spring Boot application and stock endpoints
 │   ├── src/main/resources/
 │   │   ├── application.properties
-│   │   └── schema.sql      # Tek stock tablosu
-│   ├── compose.yaml       # PostgreSQL
+│   │   └── schema.sql      # Single stock table
+│   ├── compose.yaml        # PostgreSQL
 │   └── pom.xml
-├── .env.example           # Anahtarsız ortam ayarı şablonu
+├── .env.example            # Environment template without credentials
 ├── pyproject.toml
 └── uv.lock
 ```
 
-## Yapılandırma
+## Configuration
 
-Python, proje kökündeki `.env` dosyasını `load_dotenv()` ile okur:
+Python loads the project-root `.env` file through `load_dotenv()`:
 
-| Değişken | Amaç | Varsayılan / gereklilik |
+| Variable | Purpose | Default / requirement |
 | :--- | :--- | :--- |
-| `OPENAI_API_KEY` | GPT-5 mini çağrıları | Gerekli |
-| `STOCK_SERVICE_URL` | Java servisinin adresi | `http://localhost:8081` |
-| `LANGSMITH_TRACING` | Agent ve tool izlerini gönder | Örnek dosyada `false` |
-| `LANGSMITH_API_KEY` | LangSmith erişimi | Tracing açıkken gerekli |
-| `LANGSMITH_PROJECT` | İzlerin toplandığı proje | `customer-assistant-agent` |
+| `OPENAI_API_KEY` | GPT-5 mini calls | Required |
+| `STOCK_SERVICE_URL` | Java service address | `http://localhost:8081` |
+| `LANGSMITH_TRACING` | Send agent and tool traces | `false` in the example file |
+| `LANGSMITH_API_KEY` | LangSmith access | Required when tracing is enabled |
+| `LANGSMITH_PROJECT` | Project for collected traces | `customer-assistant-agent` |
 
-LangSmith'i kullanmak için tracing'i `true` yapıp anahtarını ekle. EU bölgesinde `LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com`; birden fazla workspace'e bağlı anahtarlarda `LANGSMITH_WORKSPACE_ID` ayarı gerekir. Tracing açıkken mesajlar ve tool sonuçları LangSmith'e gönderilir. [LangGraph tracing kurulumu](https://docs.langchain.com/langsmith/trace-with-langgraph)
+To use LangSmith, set tracing to `true` and add your key. For the EU region, set `LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com`. Keys associated with multiple workspaces also require `LANGSMITH_WORKSPACE_ID`. When tracing is enabled, messages and tool results are sent to LangSmith. [LangGraph tracing setup](https://docs.langchain.com/langsmith/trace-with-langgraph)
 
-Java servisi `DB_URL`, `DB_USER`, `DB_PASSWORD` ve `PORT` ortam değişkenleriyle yapılandırılabilir. Java, kökteki `.env` dosyasını otomatik okumaz; bu değerleri Java sürecinin ortamına vermelisin. Ayrıntılar: [Stock Service README](stock-service/README.md).
+The Java service accepts `DB_URL`, `DB_USER`, `DB_PASSWORD`, and `PORT` environment variables. Java does not automatically read the project-root `.env` file; provide these values in the Java process environment. See the [Stock Service README](stock-service/README.md) for details.
 
-## Mevcut kapsam ve yol haritası
+## Current scope and roadmap
 
-- [x] FastAPI üzerinden asistan endpoint'i
-- [x] LangGraph ile asenkron model → tool → model döngüsü
-- [x] PostgreSQL'den SKU bazlı stok sorgulama
-- [x] Pydantic ile stok yanıtını doğrulama ve doğrulama hatasını tool sonucu olarak döndürme
-- [x] İsteğe bağlı LangSmith tracing yapılandırması
-- [ ] HTTP hataları, bağlantı kesintileri ve geçersiz JSON için tool hata yönetimi
-- [ ] Ürün adına göre arama
-- [ ] Kullanıcı kimliği ve API yetkilendirmesi
-- [ ] Stok servisi için yalnızca okuma yetkili veritabanı hesabı
-- [ ] Refund tool'u: sipariş sahipliği, uygunluk, onay ve tekrarlı iade koruması
+- [x] Assistant endpoint through FastAPI
+- [x] Asynchronous model → tool → model loop with LangGraph
+- [x] SKU-based stock queries backed by PostgreSQL
+- [x] Pydantic stock-response validation, with validation failures returned as tool results
+- [x] Optional LangSmith tracing configuration
+- [ ] Tool error handling for HTTP errors, connection failures, and invalid JSON
+- [ ] Product-name search
+- [ ] User authentication and API authorization
+- [ ] A database account with read-only stock access
+- [ ] Refund tool with ownership checks, eligibility rules, approval, and duplicate-refund protection
 
-> **Geliştirme kapsamı:** API'lerde henüz kimlik doğrulama yoktur. Java servisi yerel kurulumda tablo oluşturabilen yönetici hesabıyla bağlanır; GET endpoint'leri veritabanı hesabını salt okunur yapmaz. Refund henüz uygulanmamıştır. Varsayılan veritabanı bilgileri yerel geliştirme içindir.
+> **Development scope:** The APIs do not currently require authentication. In the local setup, the Java service connects with an administrative account that can create tables; GET endpoints do not make that database account read-only. Refunds are not implemented yet. Default database credentials are intended for local development.

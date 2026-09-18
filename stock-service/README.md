@@ -1,34 +1,36 @@
 # Stock Service
 
-Java 21 + Spring Boot + JDBC. PostgreSQL'deki tek `stock` tablosunu okur.
+Java 21 + Spring Boot + JDBC. Reads inventory from a single PostgreSQL `stock` table.
 
-## Çalıştırma
+## Run locally
 
-Docker açıkken bu klasörde:
+With Docker running, execute these commands from this directory:
 
 ```bash
 docker compose up -d
 mvn spring-boot:run
 ```
 
-Servis `8081`, PostgreSQL `5433` portunu kullanır. Tablo uygulama açılırken
-oluşturulur; başlangıçta boştur. API kimlik doğrulaması gerektirmez.
+The service runs on port `8081`, and PostgreSQL is exposed on port `5433`.
+The application creates the table on startup; it is initially empty.
+The API does not require authentication.
 
-Örnek stok eklemek için uygulama açıldıktan sonra başka bir terminalde:
+Once the application has started, add a sample product from another terminal
+in this directory:
 
 ```bash
-docker compose exec postgres psql -U stock -d stockdb -c "INSERT INTO stock (sku, name, quantity) VALUES ('SKU-001', 'Klavye', 25) ON CONFLICT (sku) DO NOTHING;"
+docker compose exec postgres psql -U stock -d stockdb -c "INSERT INTO stock (sku, name, quantity) VALUES ('SKU-001', 'Mechanical Keyboard', 25) ON CONFLICT (sku) DO NOTHING;"
 ```
 
-- `GET http://localhost:8081/stocks` — tüm stoklar (boşsa `[]`).
-- `GET http://localhost:8081/stocks/SKU-001` — tek ürün (bulunamazsa `404`).
+- `GET http://localhost:8081/stocks` — all stock records, or `[]` when empty.
+- `GET http://localhost:8081/stocks/SKU-001` — one product, or `404` if not found.
 
-Tek ürün yanıtı:
+Example single-product response:
 
 ```json
-{"sku":"SKU-001","name":"Klavye","quantity":25}
+{"sku":"SKU-001","name":"Mechanical Keyboard","quantity":25}
 ```
 
-Mevcut bir PostgreSQL için `DB_URL`, `DB_USER`, `DB_PASSWORD` ortam değişkenlerini
-ayarla. Port `PORT` ile değiştirilebilir. Varsayılan veritabanı parolası yerel
-geliştirme içindir; dış ortamda kendi parolanı kullan.
+For an existing PostgreSQL instance, set the `DB_URL`, `DB_USER`, and `DB_PASSWORD`
+environment variables. Set `PORT` to change the service port. The default database
+password is intended for local development; use your own credentials elsewhere.
