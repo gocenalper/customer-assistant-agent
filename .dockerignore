@@ -1,0 +1,9 @@
+# Only the files the Dockerfile copies are needed; never ship secrets.
+*
+!pyproject.toml
+!uv.lock
+!api/
+!clients/
+!graph/
+!tools/
+**/__pycache__/
